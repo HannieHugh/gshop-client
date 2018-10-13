@@ -4,15 +4,24 @@
 import {
   reqAddress,
   reqFoodCategorys,
-  reqShops
+  reqShops,
+  reqUserInfo,
+  reqLogout,
+  reqGoods,
+  reqRatings,
+  reqInfo
 } from '../api'
 
 import {
   RECEIVE_ADDRESS,
   RECEIVE_CATEGORYS,
-  RECEIVE_SHOPS
+  RECEIVE_SHOPS,
+  RECEIVE_USER,
+  RESET_USER,
+  RESET_GOODS,
+  RESET_RATINGS,
+  RESET_INFO
 } from  './mutation-types'
-import ajax from "../api/ajax";
 
 export default {
   //异步获取address
@@ -40,5 +49,48 @@ export default {
       const shops = result.data;
       commit(RECEIVE_SHOPS,{shops})
     }
+  },
+
+  saveUser({commit},{user}){
+    commit(RECEIVE_USER,{user})
+  },
+
+  async getUserInfo({commit}){
+    const result = await reqUserInfo();
+    if(result.code===0){
+      const user = result.data;
+      commit(RECEIVE_USER,{user})
+    }
+  },
+
+  async logout({commit}){
+    const result = await reqLogout();
+    if(result.code===0){
+      const user = {};
+      commit(RESET_USER,{user})
+    }
+  },
+  async getGoods({commit}){
+    const result = await reqGoods();
+    if(result.code===0){
+      const goods = result.data;
+      commit(RESET_GOODS,{goods})
+    }
+  },
+  async getRatings({commit}){
+    const result = await reqRatings();
+    if(result.code===0){
+      const ratings = result.data;
+      commit(RESET_RATINGS,{ratings})
+    }
+  },
+
+  async getInfo({commit}){
+    const result = await reqInfo()
+    if(result.code===0){
+      const info = result.data;
+      commit(RESET_INFO,{info})
+    }
   }
 }
+

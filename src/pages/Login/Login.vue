@@ -17,7 +17,7 @@
                 {{computedTime>0?`验证码已发送(${computedTime}s)`:'获取验证码'}}</button>
             </section>
             <section class="login_verification">
-              <input type="tel" maxlength="8" placeholder="验证码">
+              <input type="tel" maxlength="8" placeholder="验证码" v-model="code">
             </section>
             <section class="login_hint">
               温馨提示：未注册硅谷外卖帐号的手机号，登录时将自动注册，且代表已同意
@@ -27,22 +27,23 @@
           <div :class="{on:!isMsgLogin}">
             <section>
               <section class="login_message">
-                <input type="tel" maxlength="11" placeholder="手机/邮箱/用户名">
+                <input type="tel" maxlength="11" placeholder="手机/邮箱/用户名" v-model="name">
               </section>
               <section class="login_verification">
-                <input :type="showPwd?'text': 'password'" maxlength="8" placeholder="密码">
+                <input :type="showPwd?'text': 'password'" maxlength="8" placeholder="密码" v-model="pwd">
                 <div class="switch_button off" @click="showPwd=!showPwd" :class="showPwd?'on':'off'">
                   <div class="switch_circle" :class="{right:showPwd}"></div>
                   <span class="switch_text">{{showPwd?'abc':'...'}}</span>
                 </div>
               </section>
               <section class="login_message">
-                <input type="text" maxlength="11" placeholder="验证码">
-                <img class="get_verification" src="./images/captcha.svg" alt="captcha">
+                <input type="text" maxlength="11"  placeholder="验证码" v-model="captcha">
+                <img ref='captcha' class="get_verification" src="http://localhost:4000/captcha"
+                     alt="captcha" @click="changeCodeImg">
               </section>
             </section>
           </div>
-          <button class="login_submit">登录</button>
+          <button class="login_submit" @click="login">登录</button>
         </form>
         <a href="javascript:;" class="about_us">关于我们</a>
       </div>
@@ -54,22 +55,48 @@
 </template>
 
 <script>
+  import {Toast,MessageBox} from 'mint-ui'
+  import {reqCode,reqMsgLogin,reqPwdLogin} from '../../api'
+
+
+
+  let result = {};
+
   export default {
     data(){
       return{
-        isMsgLogin:true,
+        isMsgLogin:false,
         phone:'',
         computedTime:0,
-        showPwd:false
+        showPwd:false,
+        captcha:'', //图形验证码
+        code:'',
+        pwd:'',
+        name:''
       }
     },
     computed:{
       phoneRight(){
         return /^1\d{10}$/.test(this.phone)
-      }
+      },
+
     },
     methods:{
-      getCode(){
+      async getCode(){
+        //发送ajax请求验证码
+        const result = await reqCode(this.phone);
+        if(result.code===0){
+          Toast('验证码发送成功');
+        }else{
+          this.computedTime=0;
+          MessageBox.alert(result.msg).then(action => {
+              console.log('点击了确定')
+          });
+        }
+
+
+
+
         this.computedTime = 30;
         const intervalId = setInterval(() => {
           if(this.computedTime<=0){
@@ -78,6 +105,55 @@
           }
           this.computedTime--;
         },1000)
+      },
+      changeCodeImg(){
+        this.$refs.captcha.src = 'http://localhost:4000/captcha?time='+ Date.now()
+      },
+      async login(){
+        //1.前台表单验证
+          if(this.isMsgLogin){ //短信登录
+            if(!this.phoneRight){
+              MessageBox.alert('确定', '手机号输入错误');
+             // MessageBox('确定', '手机号输入错误');
+            }else if(!this.code){
+              MessageBox('确定', '验证码输入错误');
+              this.computedTime = 0
+            }
+
+          //2.发送登录请求
+           result = await reqMsgLogin(this.phone,this.code);
+
+
+        }else if(!this.isMsgLogin){ //密码登录
+            if(!this.name){
+              MessageBox.alert('确定', '用户名输入错误');
+            }else if(!this.pwd){
+              MessageBox.alert('确定', '密码输入错误');
+            }else if(!/^.{4}$/.test(this.captcha)){
+              MessageBox.alert('确定', '验证码输入错误');
+            }
+            //2.发送登录请求
+            const {name,pwd,captcha} = this
+             result = await reqPwdLogin({name,pwd,captcha});
+          }
+
+
+        //3.请求失败/成功之后的处理
+        this.computedTime=0;
+        this.changeCodeImg();
+
+        if(result.code===0){
+          //登录成功
+          //将用户信息保存到state中
+          const user = result.data;
+          this.$store.dispatch('saveUser',{user});
+
+          this.$router.replace('/profile')
+        }else{
+          //登录失败
+          MessageBox.alert(result.msg)
+        }
+
       }
     }
   }
